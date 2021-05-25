@@ -40,6 +40,7 @@ func TestAccKubernetesPriorityClass_basic(t *testing.T) {
 					resource.TestCheckResourceAttrSet("kubernetes_priority_class.test", "metadata.0.resource_version"),
 					resource.TestCheckResourceAttrSet("kubernetes_priority_class.test", "metadata.0.uid"),
 					resource.TestCheckResourceAttr("kubernetes_priority_class.test", "value", "100"),
+					resource.TestCheckResourceAttr("kubernetes_priority_class.test", "preemption_policy", "Never"),
 				),
 			},
 			{
@@ -66,6 +67,7 @@ func TestAccKubernetesPriorityClass_basic(t *testing.T) {
 					resource.TestCheckResourceAttrSet("kubernetes_priority_class.test", "metadata.0.resource_version"),
 					resource.TestCheckResourceAttrSet("kubernetes_priority_class.test", "metadata.0.uid"),
 					resource.TestCheckResourceAttr("kubernetes_priority_class.test", "value", "100"),
+					resource.TestCheckResourceAttr("kubernetes_priority_class.test", "preemption_policy", "PreemptLowerPriority"),
 				),
 			},
 			{
@@ -81,6 +83,7 @@ func TestAccKubernetesPriorityClass_basic(t *testing.T) {
 					resource.TestCheckResourceAttrSet("kubernetes_priority_class.test", "metadata.0.resource_version"),
 					resource.TestCheckResourceAttrSet("kubernetes_priority_class.test", "metadata.0.uid"),
 					resource.TestCheckResourceAttr("kubernetes_priority_class.test", "value", "100"),
+					resource.TestCheckResourceAttr("kubernetes_priority_class.test", "preemption_policy", "PreemptLowerPriority"),
 					resource.TestCheckResourceAttr("kubernetes_priority_class.test", "description", "Foobar"),
 					resource.TestCheckResourceAttr("kubernetes_priority_class.test", "global_default", "true"),
 				),
@@ -185,6 +188,7 @@ func testAccKubernetesPriorityClassConfig_basic(name string) string {
     name = "%s"
   }
 
+  preemption_policy = "Never"
   value = 100
 }
 `, name)

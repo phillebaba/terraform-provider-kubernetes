@@ -6,7 +6,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 
+	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	corev1 "k8s.io/api/core/v1"
 	api "k8s.io/api/scheduling/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,6 +39,22 @@ func resourceKubernetesPriorityClass() *schema.Resource {
 				Optional:    true,
 				Default:     false,
 			},
+			"preemption_policy": {
+				Type:        schema.TypeString,
+				Description: "Specifies if the policy should preempt a pod. Allowed values are `PreemptLowerPriority` and `Never`.",
+				Optional:    true,
+				Default:     corev1.PreemptLowerPriority,
+				ValidateDiagFunc: func(val interface{}, key cty.Path) diag.Diagnostics {
+					preemptionPolicy := corev1.PreemptionPolicy(val.(string))
+					switch preemptionPolicy {
+					case corev1.PreemptLowerPriority, corev1.PreemptNever:
+						break
+					default:
+						return diag.Errorf("preemption policy is invalid, must be either %s or %s but is %s", corev1.PreemptLowerPriority, corev1.PreemptNever, preemptionPolicy)
+					}
+					return nil
+				},
+			},
 			"value": {
 				Type:        schema.TypeInt,
 				Description: "The value of this priority class. This is the actual priority that pods receive when they have the name of this class in their pod spec.",
@@ -57,12 +75,14 @@ func resourceKubernetesPriorityClassCreate(ctx context.Context, d *schema.Resour
 	value := d.Get("value").(int)
 	description := d.Get("description").(string)
 	globalDefault := d.Get("global_default").(bool)
+	preemptionPolicy := corev1.PreemptionPolicy(d.Get("preemption_policy").(string))
 
 	priorityClass := api.PriorityClass{
-		ObjectMeta:    metadata,
-		Description:   description,
-		GlobalDefault: globalDefault,
-		Value:         int32(value),
+		ObjectMeta:       metadata,
+		Description:      description,
+		GlobalDefault:    globalDefault,
+		Value:            int32(value),
+		PreemptionPolicy: &preemptionPolicy,
 	}
 
 	log.Printf("[INFO] Creating new priority class: %#v", priorityClass)
@@ -120,6 +140,11 @@ func resourceKubernetesPriorityClassRead(ctx context.Context, d *schema.Resource
 		return diag.FromErr(err)
 	}
 
+	err = d.Set("preemption_policy", priorityClass.PreemptionPolicy)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
 	return nil
 }
 
@@ -146,6 +171,14 @@ func resourceKubernetesPriorityClassUpdate(ctx context.Context, d *schema.Resour
 		ops = append(ops, &ReplaceOperation{
 			Path:  "/globalDefault",
 			Value: globalDefault,
+		})
+	}
+
+	if d.HasChange("preemption_policy") {
+		preemptionPolicy := d.Get("preemption_policy").(string)
+		ops = append(ops, &ReplaceOperation{
+			Path:  "/preemptionPolicy",
+			Value: preemptionPolicy,
 		})
 	}
 
